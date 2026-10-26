@@ -181,10 +181,14 @@ fn connect(spec: &ProbeSpec) -> Result<(Socket, Duration), ProbeError> {
     #[cfg(windows)]
     send_single_syn(&socket, spec.timeout);
     let started = Instant::now();
-    socket
-        .connect_timeout(&spec.addr.into(), spec.timeout)
-        .map_err(|e| ProbeError::from_io(&e))?;
-    Ok((socket, started.elapsed()))
+    match socket.connect_timeout(&spec.addr.into(), spec.timeout) {
+        Ok(()) => Ok((socket, started.elapsed())),
+        // socket2 reports a hang-up without an error code as a failure. On macOS and
+        // Windows that is what a server looks like that accepted and closed at once: the
+        // connect did succeed, and a socket with a peer address is connected.
+        Err(_) if socket.peer_addr().is_ok() => Ok((socket, started.elapsed())),
+        Err(e) => Err(ProbeError::from_io(&e)),
+    }
 }
 
 /// Windows answers an RST to its SYN by retrying for about 2 s, so a closed port shows up
@@ -288,6 +292,30 @@ mod tests {
             matches!(r.error, Some(ProbeError::Other(_))),
             "{:?}",
             r.error
+        );
+    }
+
+    /// A server that accepts and closes at once. On macOS and Windows the hang-up can be
+    /// visible by the time the connect is checked; the connect still succeeded.
+    #[test]
+    fn connect_counts_when_the_server_closes_at_once() {
+        let l = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = l.local_addr().unwrap();
+        thread::spawn(move || {
+            for stream in l.incoming().flatten() {
+                let _ = stream.shutdown(std::net::Shutdown::Both);
+            }
+        });
+        let failures: Vec<_> = (1..=300)
+            .map(|seq| probe(&spec(addr, 1000), seq))
+            .filter(|r| !r.ok())
+            .map(|r| r.error)
+            .collect();
+        assert!(
+            failures.is_empty(),
+            "{} of 300 failed: {:?}",
+            failures.len(),
+            &failures[..failures.len().min(3)]
         );
     }
 
