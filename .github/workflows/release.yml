@@ -29,9 +29,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
           targets: ${{ matrix.target }}
-      - name: Install musl tools
+      - name: Install musl tools (and rpm for the .rpm package)
         if: contains(matrix.target, 'musl')
-        run: sudo apt-get update && sudo apt-get install -y musl-tools
+        run: sudo apt-get update && sudo apt-get install -y musl-tools rpm
       - name: Put clang on PATH (ring needs it for ARM64 Windows)
         if: matrix.target == 'aarch64-pc-windows-msvc'
         shell: bash
@@ -57,6 +57,10 @@ jobs:
             cp "target/$TARGET/release/paping" "$name/"
             tar czf "$name.tar.gz" "$name"
           fi
+          if [[ "$TARGET" == *linux* ]]; then
+            # .deb and .rpm with the same static binary, for any Debian/Ubuntu/Fedora.
+            sh scripts/package-linux.sh "$TARGET" "$name" .
+          fi
           rm -rf "$name"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -64,6 +68,8 @@ jobs:
           path: |
             paping-*.zip
             paping-*.tar.gz
+            paping_*.deb
+            paping-*.rpm
           if-no-files-found: error
 
   release:
@@ -80,7 +86,7 @@ jobs:
           merge-multiple: true
       - name: Checksums
         working-directory: dist
-        run: sha256sum paping-*.zip paping-*.tar.gz > SHA256SUMS
+        run: sha256sum paping-*.zip paping-*.tar.gz paping_*.deb paping-*.rpm > SHA256SUMS
       - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}

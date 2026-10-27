@@ -1,0 +1,3 @@
+# Keep LF everywhere, also in `git archive` on Windows (core.autocrlf would add CR).
+* text=auto eol=lf
+*.svg text eol=lf

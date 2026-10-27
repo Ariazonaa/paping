@@ -40,8 +40,14 @@ output matches line for line.
 
 ## Install
 
-- **GitHub Releases:** download the archive for your platform from
+- **Debian, Ubuntu:** download `paping_<version>_amd64.deb` (or `_arm64.deb`) from
+  [Releases](https://github.com/Ariazonaa/paping/releases), then
+  `sudo apt install ./paping_0.1.0_amd64.deb`
+- **Fedora, RHEL, openSUSE:** download `paping-<version>-1.x86_64.rpm` (or `.aarch64.rpm`),
+  then `sudo dnf install ./paping-0.1.0-1.x86_64.rpm`
+- **Any Linux, macOS, Windows:** download the archive for your platform from
   [Releases](https://github.com/Ariazonaa/paping/releases) and put `paping` on your `PATH`.
+  The Linux builds are static and run on any distribution.
 - **Cargo:** `cargo install paping`
 - **winget:** `winget install Ariazonaa.paping` (once the package is accepted)
 
